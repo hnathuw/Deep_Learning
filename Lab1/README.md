@@ -105,7 +105,7 @@ Epoch 100:   w = 3.4925,  b = 1.7401,   Loss = 2.5917
 So với giá trị thực: w = 3.0, b = 5.0
 ```
 
-**Phân tích:**
+**Nhận xét:**
 - Weight w hội tụ gần giá trị thực (3.49 ≈ 3.0)
 - Bias b còn xa mục tiêu (1.74 vs 5.0) → cần train thêm hoặc tăng learning rate
 - Loss giảm đều → mô hình đang học
@@ -191,7 +191,7 @@ reshaped_as = original2.view_as(target_shape)
 # Shape tự động theo target: [4, 6]
 ```
 
-**Kết quả:**
+**Nhận xét:**
 - Tất cả các phương thức hoạt động đúng
 - `view()` yêu cầu số phần tử không đổi (12 → 3×4)
 - `view_as()` tiện lợi khi muốn clone shape từ tensor khác
