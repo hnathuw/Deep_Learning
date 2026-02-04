@@ -669,7 +669,7 @@ c) **Kích thước model:**
 **Ví dụ đơn giản:**
 
 ```
-x → w1 → z → f(z) → ŷ → Loss
+x => w1 => z => f(z) => ŷ => Loss
 ```
 
 - Forward: `z = w1 × x`, `ŷ = sigmoid(z)`, `L = BCE(y, ŷ)`
