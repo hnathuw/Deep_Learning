@@ -1,0 +1,9 @@
+Dựa trên bài lab đã học ở tuần trước (CNN thuần), hãy thay đổi thành các tập dữ liệu khác như:
+- Cat and dog
+- CIFAR-10
+- PlantVillage
+Sử dụng các phương pháp phân tích dữ liệu, cân bằng dữ liệu,...
+Cố gắng thay đổi các tham số sao cho độ chính xác phải lớn hơn 90% và tránh trường hợp overfitting
+
+Không sử dụng các mô hình re-train hoặc các mô hình như Resnet, Convnext tiny,...
+DEADLINE: 21/03/2026 
