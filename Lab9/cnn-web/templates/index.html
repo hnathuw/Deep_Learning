@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CNN Classifier</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #060810;
+    --surface: #0d1117;
+    --card: #161b27;
+    --border: #21283a;
+    --accent: #00d4ff;
+    --accent2: #ff6b6b;
+    --accent3: #69ff94;
+    --accent4: #ffd93d;
+    --text: #e2e8f0;
+    --muted: #64748b;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* Grid background */
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events:none; z-index:0;
+  }
+
+  header {
+    padding: 20px 48px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    position: relative; z-index:2;
+    backdrop-filter: blur(10px);
+  }
+
+  .logo {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .logo .accent { color: var(--accent); }
+
+  .badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    padding: 5px 12px;
+    border-radius: 4px;
+  }
+
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 56px 32px;
+    position: relative; z-index:1;
+  }
+
+  .hero { text-align:center; margin-bottom:56px; }
+
+  .tag {
+    display:inline-flex; align-items:center; gap:8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size:11px; letter-spacing:2px;
+    color: var(--accent); border: 1px solid rgba(0,212,255,0.3);
+    padding:6px 16px; border-radius:4px; margin-bottom:20px;
+    animation: fadeUp 0.5s ease both;
+  }
+  .tag::before { content:''; width:6px; height:6px; background:var(--accent); border-radius:50%; animation:pulse 2s infinite; }
+
+  h1 {
+    font-size: clamp(40px, 6vw, 72px);
+    font-weight: 800;
+    letter-spacing: -3px;
+    line-height: 0.95;
+    margin-bottom: 20px;
+    animation: fadeUp 0.5s 0.1s ease both;
+  }
+  h1 .c1 { color: var(--accent); }
+  h1 .c2 { color: var(--text); }
+
+  .hero p {
+    font-size:15px; color:var(--muted); max-width:480px;
+    margin:0 auto; line-height:1.7;
+    animation: fadeUp 0.5s 0.2s ease both;
+  }
+
+  /* Dataset selector */
+  .ds-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 40px;
+    animation: fadeUp 0.5s 0.3s ease both;
+  }
+
+  .ds-card {
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 16px;
+    cursor: pointer;
+    transition: all 0.25s;
+    text-align: center;
+  }
+  .ds-card:hover { transform: translateY(-2px); }
+  .ds-card.active-mnist   { border-color: var(--accent);  background: rgba(0,212,255,0.08); }
+  .ds-card.active-catdog  { border-color: var(--accent2); background: rgba(255,107,107,0.08); }
+  .ds-card.active-cifar10 { border-color: var(--accent3); background: rgba(105,255,148,0.08); }
+  .ds-card.active-plant   { border-color: var(--accent4); background: rgba(255,217,61,0.08); }
+
+  .ds-icon { font-size: 28px; margin-bottom: 8px; }
+  .ds-name { font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:1px; color:var(--muted); text-transform:uppercase; }
+  .ds-title { font-size:13px; font-weight:600; margin-top:4px; }
+
+  /* Main layout */
+  .workspace {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 24px;
+    animation: fadeUp 0.5s 0.4s ease both;
+  }
+
+  .upload-col { display:flex; flex-direction:column; gap:16px; }
+
+  .upload-zone {
+    flex:1;
+    background: var(--card);
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    padding: 40px 24px;
+    text-align:center;
+    cursor: pointer;
+    transition: all 0.25s;
+    position: relative;
+    min-height: 240px;
+    display: flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .upload-zone:hover, .upload-zone.drag {
+    border-color: var(--accent);
+    background: rgba(0,212,255,0.04);
+  }
+
+  .upload-icon-wrap {
+    width:60px; height:60px;
+    background: rgba(0,212,255,0.1);
+    border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:26px; margin-bottom:14px;
+  }
+
+  .upload-zone h3 { font-size:14px; font-weight:600; margin-bottom:6px; }
+  .upload-zone p  { font-size:12px; color:var(--muted); }
+
+  .preview-img {
+    max-width:100%; max-height:180px;
+    object-fit:contain; border-radius:10px;
+    margin-top:12px; display:none;
+  }
+
+  input[type=file] { display:none; }
+
+  .btn-predict {
+    width:100%; padding:14px;
+    background: var(--accent);
+    color: #000;
+    border:none; border-radius:10px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px; letter-spacing:2px;
+    font-weight:600; cursor:pointer;
+    transition: all 0.2s;
+    display:none;
+  }
+  .btn-predict:hover { filter:brightness(1.15); transform:translateY(-1px); }
+
+  /* Result */
+  .result-col {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius:16px;
+    padding:32px;
+    display:flex; flex-direction:column;
+  }
+
+  .result-header {
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px; letter-spacing:2px;
+    color:var(--muted); text-transform:uppercase;
+    margin-bottom:20px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom:12px;
+  }
+
+  .big-label {
+    font-size:clamp(20px,3vw,36px);
+    font-weight:800;
+    letter-spacing:-1px;
+    color:var(--accent3);
+    margin-bottom:4px;
+    word-break:break-word;
+  }
+
+  .conf-badge {
+    display:inline-block;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--accent);
+    border:1px solid rgba(0,212,255,0.3);
+    padding:3px 10px; border-radius:4px;
+    margin-bottom:20px;
+  }
+
+  .prob-list { list-style:none; flex:1; overflow-y:auto; }
+  .prob-item {
+    display:flex; align-items:center; gap:8px;
+    margin-bottom:10px;
+  }
+  .prob-name {
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px; color:var(--muted);
+    width:150px; flex-shrink:0;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .bar-wrap { flex:1; height:5px; background:var(--border); border-radius:3px; overflow:hidden; }
+  .bar-fill { height:100%; border-radius:3px; transition:width 0.7s cubic-bezier(.34,1.56,.64,1); width:0; }
+  .prob-pct { font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--muted); width:36px; text-align:right; }
+
+  .placeholder {
+    flex:1; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    text-align:center;
+  }
+  .placeholder .ico { font-size:48px; opacity:0.2; margin-bottom:12px; }
+  .placeholder p { color:var(--muted); font-size:13px; }
+
+  .spinner-wrap { flex:1; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:12px; }
+  .spinner { width:28px; height:28px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
+
+  @keyframes spin { to { transform:rotate(360deg); } }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)} }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+
+  @media(max-width:900px) {
+    .ds-grid { grid-template-columns:repeat(2,1fr); }
+    .workspace { grid-template-columns:1fr; }
+  }
+  @media(max-width:600px) {
+    header { padding:16px 20px; }
+    main { padding:32px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">CNN<span class="accent">.</span>vision</div>
+  <div class="badge">CNN · DEEP LEARNING LAB</div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="tag">Convolutional Neural Network</div>
+    <h1><span class="c1">CNN</span><br><span class="c2">Image Classifier</span></h1>
+    <p>Chọn bộ dữ liệu, tải ảnh lên và để mạng CNN nhận diện đối tượng trong ảnh.</p>
+  </div>
+
+  <!-- Dataset selector -->
+  <div class="ds-grid">
+    <div class="ds-card active-mnist" onclick="setDS('mnist')" id="card-mnist">
+      <div class="ds-icon">🔢</div>
+      <div class="ds-name">Dataset 1</div>
+      <div class="ds-title">MNIST</div>
+    </div>
+    <div class="ds-card" onclick="setDS('catdog')" id="card-catdog">
+      <div class="ds-icon">🐾</div>
+      <div class="ds-name">Dataset 2</div>
+      <div class="ds-title">Cats vs Dogs</div>
+    </div>
+    <div class="ds-card" onclick="setDS('cifar10')" id="card-cifar10">
+      <div class="ds-icon">🌍</div>
+      <div class="ds-name">Dataset 3</div>
+      <div class="ds-title">CIFAR-10</div>
+    </div>
+    <div class="ds-card" onclick="setDS('plant')" id="card-plant">
+      <div class="ds-icon">🌿</div>
+      <div class="ds-name">Dataset 4</div>
+      <div class="ds-title">PlantVillage</div>
+    </div>
+  </div>
+
+  <div class="workspace">
+    <div class="upload-col">
+      <div class="upload-zone" id="upload-zone"
+           ondragover="onDrag(event)" ondragleave="offDrag()" ondrop="onDrop(event)"
+           onclick="document.getElementById('file-input').click()">
+        <div class="upload-icon-wrap" id="upload-icon">🔢</div>
+        <h3 id="upload-title">Tải ảnh chữ số</h3>
+        <p id="upload-hint">Kéo thả hoặc click để chọn ảnh</p>
+        <img class="preview-img" id="preview" alt="preview">
+      </div>
+      <input type="file" id="file-input" accept="image/*" onchange="onFile(event)">
+      <button class="btn-predict" id="btn-predict" onclick="runPredict()">▶ PHÂN TÍCH</button>
+    </div>
+
+    <div class="result-col" id="result-col">
+      <div class="result-header">Kết quả dự đoán</div>
+      <div class="placeholder">
+        <div class="ico">🧠</div>
+        <p>Chọn dataset và tải ảnh<br>để bắt đầu nhận diện</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const DS_CONFIG = {
+  mnist:   { icon:'🔢', title:'Tải ảnh chữ số (0–9)',      hint:'Ảnh chữ số viết tay MNIST',      color:'var(--accent)',  endpoint:'/predict/mnist' },
+  catdog:  { icon:'🐾', title:'Tải ảnh mèo hoặc chó',      hint:'Ảnh chụp thực tế, rõ nét hơn',   color:'var(--accent2)', endpoint:'/predict/catdog' },
+  cifar10: { icon:'🌍', title:'Tải ảnh CIFAR-10',           hint:'10 loại: máy bay, ô tô, chim...', color:'var(--accent3)', endpoint:'/predict/cifar10' },
+  plant:   { icon:'🌿', title:'Tải ảnh lá cây',             hint:'38 loại bệnh lá PlantVillage',    color:'var(--accent4)', endpoint:'/predict/plantvillage' },
+};
+
+let currentDS = 'mnist';
+let currentFile = null;
+
+function setDS(ds) {
+  currentDS = ds;
+  currentFile = null;
+
+  // Card styling
+  Object.keys(DS_CONFIG).forEach(k => {
+    const el = document.getElementById('card-'+k);
+    el.className = 'ds-card' + (k===ds ? ' active-'+k : '');
+  });
+
+  const cfg = DS_CONFIG[ds];
+  document.getElementById('upload-icon').textContent = cfg.icon;
+  document.getElementById('upload-title').textContent = cfg.title;
+  document.getElementById('upload-hint').textContent  = cfg.hint;
+
+  const prev = document.getElementById('preview');
+  prev.style.display = 'none';
+  document.getElementById('btn-predict').style.display = 'none';
+  document.getElementById('file-input').value = '';
+
+  showPlaceholder();
+}
+
+function onFile(e) {
+  const f = e.target.files[0]; if (!f) return;
+  currentFile = f;
+  const prev = document.getElementById('preview');
+  prev.src = URL.createObjectURL(f);
+  prev.style.display = 'block';
+  document.getElementById('btn-predict').style.display = 'block';
+}
+
+function onDrag(e) { e.preventDefault(); document.getElementById('upload-zone').classList.add('drag'); }
+function offDrag()  { document.getElementById('upload-zone').classList.remove('drag'); }
+function onDrop(e) {
+  e.preventDefault(); offDrag();
+  const f = e.dataTransfer.files[0]; if (!f) return;
+  currentFile = f;
+  const prev = document.getElementById('preview');
+  prev.src = URL.createObjectURL(f);
+  prev.style.display = 'block';
+  document.getElementById('btn-predict').style.display = 'block';
+}
+
+function showPlaceholder() {
+  document.getElementById('result-col').innerHTML = `
+    <div class="result-header">Kết quả dự đoán</div>
+    <div class="placeholder">
+      <div class="ico">🧠</div>
+      <p>Chọn dataset và tải ảnh<br>để bắt đầu nhận diện</p>
+    </div>`;
+}
+
+async function runPredict() {
+  if (!currentFile) return;
+  const col = document.getElementById('result-col');
+  col.innerHTML = `<div class="result-header">Kết quả dự đoán</div>
+    <div class="spinner-wrap"><div class="spinner"></div><p style="color:var(--muted);font-size:12px;font-family:monospace">Đang phân tích...</p></div>`;
+
+  const fd = new FormData();
+  fd.append('image', currentFile);
+
+  try {
+    const res  = await fetch(DS_CONFIG[currentDS].endpoint, { method:'POST', body:fd });
+    const data = await res.json();
+    if (data.success) renderResult(col, data);
+    else col.innerHTML += `<p style="color:#f77;padding:20px">❌ ${data.error}</p>`;
+  } catch(e) {
+    col.innerHTML += `<p style="color:#f77;padding:20px">❌ Không kết nối được server</p>`;
+  }
+}
+
+function renderResult(col, data) {
+  const color = DS_CONFIG[currentDS].color;
+  const entries = Object.entries(data.top_probs);
+  const bars = entries.map(([k, v], i) => {
+    const isTop = i === 0;
+    return `<li class="prob-item">
+      <span class="prob-name" title="${k}">${k.replace(/_/g,' ')}</span>
+      <div class="bar-wrap"><div class="bar-fill" style="width:${v}%;background:${isTop?color:'var(--border)'}"></div></div>
+      <span class="prob-pct">${v}%</span>
+    </li>`;
+  }).join('');
+
+  col.innerHTML = `
+    <div class="result-header">Kết quả dự đoán</div>
+    <div class="big-label" style="color:${color}">${data.label.replace(/_/g,' ')}</div>
+    <div class="conf-badge">confidence: ${data.confidence}%</div>
+    <ul class="prob-list">${bars}</ul>
+  `;
+}
+</script>
+</body>
+</html>

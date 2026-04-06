@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANN Classifier</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --card: #1a1a26;
+    --border: #2a2a3e;
+    --accent: #7c6af7;
+    --accent2: #f7a26a;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --success: #6af7a2;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* noise texture */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0;
+  }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 24px 48px;
+    border-bottom: 1px solid var(--border);
+    position: relative; z-index: 1;
+  }
+
+  .logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 18px;
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--accent); }
+
+  .nav-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 60px 32px;
+    position: relative; z-index: 1;
+  }
+
+  .hero {
+    text-align: center;
+    margin-bottom: 64px;
+  }
+
+  .hero-tag {
+    display: inline-block;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 5px 14px;
+    border-radius: 20px;
+    margin-bottom: 24px;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  h1 {
+    font-size: clamp(36px, 5vw, 60px);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -2px;
+    margin-bottom: 16px;
+    animation: fadeUp 0.6s 0.1s ease both;
+  }
+
+  h1 em { font-style: normal; color: var(--accent); }
+
+  .hero p {
+    color: var(--muted);
+    font-size: 16px;
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.6;
+    animation: fadeUp 0.6s 0.2s ease both;
+  }
+
+  /* Tab switcher */
+  .tabs {
+    display: flex; gap: 8px;
+    justify-content: center;
+    margin-bottom: 40px;
+    animation: fadeUp 0.6s 0.3s ease both;
+  }
+
+  .tab-btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 1px;
+    padding: 10px 24px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tab-btn:hover { color: var(--text); border-color: var(--accent); }
+  .tab-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  /* Upload area */
+  .panel {
+    display: none;
+    animation: fadeUp 0.4s ease both;
+  }
+  .panel.active { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+  .upload-zone {
+    background: var(--card);
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    padding: 48px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(124,106,247,0.05); }
+
+  .upload-icon {
+    width: 56px; height: 56px;
+    margin: 0 auto 16px;
+    background: rgba(124,106,247,0.12);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+  }
+
+  .upload-zone h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .upload-zone p { font-size: 13px; color: var(--muted); }
+
+  input[type=file] { display: none; }
+
+  .preview-img {
+    width: 100%; max-height: 200px;
+    object-fit: contain;
+    border-radius: 10px;
+    margin-top: 16px;
+    display: none;
+  }
+
+  .btn-predict {
+    width: 100%;
+    margin-top: 16px;
+    padding: 14px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: none;
+  }
+  .btn-predict:hover { background: #6a5ae0; transform: translateY(-1px); }
+  .btn-predict:active { transform: translateY(0); }
+
+  /* Result panel */
+  .result-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .result-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .result-value {
+    font-size: 42px;
+    font-weight: 700;
+    letter-spacing: -2px;
+    color: var(--success);
+    margin-bottom: 4px;
+  }
+
+  .result-conf {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    color: var(--accent2);
+    margin-bottom: 24px;
+  }
+
+  .prob-list { list-style: none; }
+  .prob-item {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 8px;
+  }
+  .prob-name {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    width: 40px;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+  .prob-bar-wrap {
+    flex: 1; height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .prob-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1);
+    width: 0;
+  }
+  .prob-pct {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    width: 40px;
+    text-align: right;
+  }
+
+  .placeholder-state {
+    text-align: center;
+    padding: 40px 20px;
+  }
+  .placeholder-state .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.3; }
+  .placeholder-state p { color: var(--muted); font-size: 14px; }
+
+  .loading { display: none; text-align: center; padding: 40px; }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 12px;
+  }
+
+  @keyframes spin  { to { transform: rotate(360deg); } }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 700px) {
+    .panel.active { grid-template-columns: 1fr; }
+    header { padding: 20px 24px; }
+    main { padding: 40px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">ANN<span>.</span>classify</div>
+  <div class="nav-badge">ANN · DEEP LEARNING LAB</div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="hero-tag">Artificial Neural Network</div>
+    <h1>Phân Loại Ảnh<br>bằng <em>ANN</em></h1>
+    <p>Tải ảnh lên để mô hình ANN (Mạng nơ-ron nhân tạo) nhận diện và phân loại.</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('mnist')">🔢 MNIST – Chữ Số</button>
+    <button class="tab-btn" onclick="switchTab('catdog')">🐾 Mèo vs Chó</button>
+  </div>
+
+  <!-- MNIST Panel -->
+  <div class="panel active" id="panel-mnist">
+    <div>
+      <div class="upload-zone" id="zone-mnist"
+           ondragover="onDrag(event,'mnist')" ondragleave="offDrag('mnist')"
+           ondrop="onDrop(event,'mnist')" onclick="document.getElementById('file-mnist').click()">
+        <div class="upload-icon">🔢</div>
+        <h3>Tải ảnh chữ số</h3>
+        <p>Kéo thả hoặc click để chọn<br>Ảnh viết tay 0–9</p>
+        <img class="preview-img" id="prev-mnist" alt="preview">
+      </div>
+      <input type="file" id="file-mnist" accept="image/*" onchange="onFile(event,'mnist')">
+      <button class="btn-predict" id="btn-mnist" onclick="runPredict('mnist')">▶ PREDICT</button>
+    </div>
+    <div class="result-card" id="result-mnist">
+      <div class="placeholder-state">
+        <div class="icon">🤖</div>
+        <p>Tải ảnh để bắt đầu nhận diện</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cat/Dog Panel -->
+  <div class="panel" id="panel-catdog">
+    <div>
+      <div class="upload-zone" id="zone-catdog"
+           ondragover="onDrag(event,'catdog')" ondragleave="offDrag('catdog')"
+           ondrop="onDrop(event,'catdog')" onclick="document.getElementById('file-catdog').click()">
+        <div class="upload-icon">🐾</div>
+        <h3>Tải ảnh mèo hoặc chó</h3>
+        <p>Kéo thả hoặc click để chọn</p>
+        <img class="preview-img" id="prev-catdog" alt="preview">
+      </div>
+      <input type="file" id="file-catdog" accept="image/*" onchange="onFile(event,'catdog')">
+      <button class="btn-predict" id="btn-catdog" onclick="runPredict('catdog')">▶ PREDICT</button>
+    </div>
+    <div class="result-card" id="result-catdog">
+      <div class="placeholder-state">
+        <div class="icon">🤖</div>
+        <p>Tải ảnh để bắt đầu nhận diện</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+let files = { mnist: null, catdog: null };
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['mnist','catdog'][i]===tab));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-'+tab).classList.add('active');
+}
+
+function onFile(e, tab) {
+  const f = e.target.files[0]; if (!f) return;
+  files[tab] = f;
+  const prev = document.getElementById('prev-'+tab);
+  prev.src = URL.createObjectURL(f);
+  prev.style.display = 'block';
+  document.getElementById('btn-'+tab).style.display = 'block';
+}
+
+function onDrag(e, tab) { e.preventDefault(); document.getElementById('zone-'+tab).classList.add('drag'); }
+function offDrag(tab)   { document.getElementById('zone-'+tab).classList.remove('drag'); }
+function onDrop(e, tab) {
+  e.preventDefault(); offDrag(tab);
+  const f = e.dataTransfer.files[0]; if (!f) return;
+  files[tab] = f;
+  const prev = document.getElementById('prev-'+tab);
+  prev.src = URL.createObjectURL(f);
+  prev.style.display = 'block';
+  document.getElementById('btn-'+tab).style.display = 'block';
+}
+
+async function runPredict(tab) {
+  if (!files[tab]) return;
+  const card = document.getElementById('result-'+tab);
+  card.innerHTML = '<div class="loading" style="display:block"><div class="spinner"></div><p style="color:var(--muted);font-size:13px">Đang phân tích...</p></div>';
+
+  const fd = new FormData();
+  fd.append('image', files[tab]);
+
+  try {
+    const res  = await fetch('/predict/'+tab, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.success) renderResult(card, data);
+    else card.innerHTML = `<p style="color:#f77">❌ Lỗi: ${data.error}</p>`;
+  } catch(e) {
+    card.innerHTML = `<p style="color:#f77">❌ Không kết nối được server</p>`;
+  }
+}
+
+function renderResult(card, data) {
+  const entries = Object.entries(data.all_probs).sort((a,b)=>b[1]-a[1]);
+  const bars = entries.map(([k,v]) =>
+    `<li class="prob-item">
+      <span class="prob-name">${k}</span>
+      <div class="prob-bar-wrap"><div class="prob-bar" style="width:${v}%;background:${v===data.confidence?'var(--success)':'var(--accent)'}"></div></div>
+      <span class="prob-pct">${v}%</span>
+    </li>`
+  ).join('');
+
+  card.innerHTML = `
+    <div class="result-label">Kết quả nhận diện</div>
+    <div class="result-value">${data.label}</div>
+    <div class="result-conf">Confidence: ${data.confidence}%</div>
+    <ul class="prob-list">${bars}</ul>
+  `;
+}
+</script>
+</body>
+</html>

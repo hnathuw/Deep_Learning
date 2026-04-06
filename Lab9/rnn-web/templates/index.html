@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RNN Time Series</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Clash+Display:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d2e;
+    --border: #252840;
+    --accent: #a78bfa;
+    --accent2: #34d399;
+    --accent3: #f59e0b;
+    --text: #f1f5f9;
+    --muted: #64748b;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+  }
+
+  /* radial glow */
+  body::after {
+    content:'';
+    position:fixed;
+    top:-30%; left:-20%;
+    width:70vw; height:70vh;
+    background: radial-gradient(ellipse, rgba(167,139,250,0.06) 0%, transparent 70%);
+    pointer-events:none;
+  }
+
+  header {
+    padding:20px 48px;
+    border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    position:relative; z-index:2;
+  }
+
+  .logo { font-size:16px; font-weight:600; letter-spacing:-0.5px; }
+  .logo span { color:var(--accent); }
+
+  .badge {
+    font-size:10px; letter-spacing:2px;
+    color:var(--muted); text-transform:uppercase;
+    border:1px solid var(--border); padding:5px 12px; border-radius:4px;
+  }
+
+  main {
+    max-width:1200px; margin:0 auto;
+    padding:56px 32px;
+    position:relative; z-index:1;
+  }
+
+  .hero { text-align:center; margin-bottom:52px; }
+
+  .tag {
+    display:inline-block;
+    font-size:10px; letter-spacing:2px; text-transform:uppercase;
+    color:var(--accent); border:1px solid rgba(167,139,250,0.3);
+    padding:5px 14px; border-radius:4px;
+    margin-bottom:20px; animation:fadeUp .5s ease both;
+  }
+
+  h1 {
+    font-family:'JetBrains Mono',monospace;
+    font-size:clamp(32px,5vw,60px);
+    font-weight:600; letter-spacing:-2px;
+    line-height:1; margin-bottom:16px;
+    animation:fadeUp .5s .1s ease both;
+  }
+  h1 em { font-style:normal; color:var(--accent); }
+
+  .hero p {
+    font-size:14px; color:var(--muted);
+    max-width:440px; margin:0 auto; line-height:1.8;
+    animation:fadeUp .5s .2s ease both;
+  }
+
+  /* Mode tabs */
+  .mode-tabs {
+    display:flex; gap:12px; justify-content:center;
+    margin-bottom:36px; animation:fadeUp .5s .3s ease both;
+  }
+  .mode-btn {
+    padding:10px 24px; border-radius:8px;
+    border:1px solid var(--border);
+    background:transparent; color:var(--muted);
+    font-family:'JetBrains Mono',monospace; font-size:12px;
+    cursor:pointer; transition:all .2s;
+  }
+  .mode-btn:hover { border-color:var(--accent); color:var(--text); }
+  .mode-btn.active { background:var(--accent); border-color:var(--accent); color:#1a1d2e; font-weight:600; }
+
+  /* Controls */
+  .controls {
+    display:grid; grid-template-columns:repeat(3,1fr); gap:16px;
+    margin-bottom:24px; animation:fadeUp .5s .4s ease both;
+  }
+
+  .control-group label {
+    display:block; font-size:10px; letter-spacing:1px;
+    text-transform:uppercase; color:var(--muted); margin-bottom:6px;
+  }
+
+  .control-group input[type=range] {
+    width:100%; accent-color:var(--accent);
+  }
+
+  .control-group .val {
+    font-size:12px; color:var(--accent); margin-top:4px;
+  }
+
+  .btn-run {
+    width:100%; padding:14px;
+    background:var(--accent); border:none; border-radius:10px;
+    font-family:'JetBrains Mono',monospace; font-size:12px;
+    font-weight:600; letter-spacing:1px;
+    color:#1a1d2e; cursor:pointer; transition:all .2s;
+    margin-bottom:24px; animation:fadeUp .5s .5s ease both;
+  }
+  .btn-run:hover { filter:brightness(1.1); transform:translateY(-1px); }
+
+  /* Chart */
+  .chart-card {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:16px; padding:28px;
+    animation:fadeUp .5s .6s ease both;
+  }
+
+  .chart-header {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:20px;
+  }
+
+  .chart-title { font-size:13px; font-weight:600; }
+
+  .legend {
+    display:flex; gap:16px;
+  }
+  .leg-item { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); }
+  .leg-dot  { width:8px; height:8px; border-radius:50%; }
+
+  canvas { max-height:360px; }
+
+  /* Stats row */
+  .stats {
+    display:grid; grid-template-columns:repeat(3,1fr);
+    gap:16px; margin-top:20px;
+  }
+  .stat-card {
+    background:var(--bg); border:1px solid var(--border);
+    border-radius:10px; padding:16px;
+  }
+  .stat-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); }
+  .stat-val   { font-size:22px; font-weight:600; color:var(--accent); margin-top:4px; }
+
+  .loading-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(15,17,23,0.8); z-index:50;
+    align-items:center; justify-content:center;
+    backdrop-filter:blur(4px);
+  }
+  .loading-overlay.show { display:flex; }
+  .spinner {
+    width:36px; height:36px;
+    border:3px solid var(--border); border-top-color:var(--accent);
+    border-radius:50%; animation:spin .7s linear infinite;
+  }
+
+  @keyframes spin    { to{transform:rotate(360deg)} }
+  @keyframes fadeUp  { from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)} }
+
+  @media(max-width:700px) {
+    .controls { grid-template-columns:1fr; }
+    .stats    { grid-template-columns:1fr; }
+    header { padding:16px 20px; }
+    main   { padding:32px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+</div>
+
+<header>
+  <div class="logo">RNN<span>.</span>predict</div>
+  <div class="badge">RNN · DEEP LEARNING LAB</div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="tag">Recurrent Neural Network</div>
+    <h1><em>RNN</em><br>Time Series</h1>
+    <p>Mô phỏng và dự đoán chuỗi thời gian bằng mạng hồi quy RNN. Điều chỉnh tham số và xem kết quả trực tiếp.</p>
+  </div>
+
+  <div class="mode-tabs">
+    <button class="mode-btn active" onclick="setMode('sinwave')">📈 Sin Wave (Đơn biến)</button>
+    <button class="mode-btn" onclick="setMode('multivar')">📊 Multivariate (Đa biến)</button>
+  </div>
+
+  <div class="controls" id="controls-sinwave">
+    <div class="control-group">
+      <label>Số điểm dữ liệu</label>
+      <input type="range" min="60" max="200" value="100" id="sw-steps" oninput="document.getElementById('sw-steps-v').textContent=this.value">
+      <div class="val" id="sw-steps-v">100</div>
+    </div>
+    <div class="control-group">
+      <label>Nhiễu (Noise)</label>
+      <input type="range" min="0" max="50" value="10" id="sw-noise" oninput="document.getElementById('sw-noise-v').textContent=(this.value/100).toFixed(2)">
+      <div class="val" id="sw-noise-v">0.10</div>
+    </div>
+    <div class="control-group">
+      <label>Dự đoán tương lai</label>
+      <input type="range" min="5" max="50" value="20" id="sw-future" oninput="document.getElementById('sw-future-v').textContent=this.value">
+      <div class="val" id="sw-future-v">20</div>
+    </div>
+  </div>
+
+  <div class="controls" id="controls-multivar" style="display:none">
+    <div class="control-group">
+      <label>Số điểm dữ liệu</label>
+      <input type="range" min="100" max="400" value="300" id="mv-steps" oninput="document.getElementById('mv-steps-v').textContent=this.value">
+      <div class="val" id="mv-steps-v">300</div>
+    </div>
+    <div class="control-group">
+      <label>Dự đoán tương lai</label>
+      <input type="range" min="10" max="60" value="30" id="mv-future" oninput="document.getElementById('mv-future-v').textContent=this.value">
+      <div class="val" id="mv-future-v">30</div>
+    </div>
+    <div class="control-group">
+      <label>Thông tin</label>
+      <div style="font-size:11px;color:var(--muted);line-height:1.8;margin-top:8px">
+        3 features: sin(t), cos(0.5t), trend<br>
+        Target = weighted sum + noise
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-run" onclick="runPredict()">▶ CHẠY DỰ ĐOÁN</button>
+
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title" id="chart-title">Sin Wave Prediction</div>
+      <div class="legend">
+        <div class="leg-item"><div class="leg-dot" style="background:#a78bfa"></div>Gốc</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#34d399"></div>Dự đoán</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#f59e0b"></div>Tương lai</div>
+      </div>
+    </div>
+    <canvas id="myChart"></canvas>
+    <div class="stats" id="stats" style="display:none">
+      <div class="stat-card">
+        <div class="stat-label">Điểm dữ liệu</div>
+        <div class="stat-val" id="stat-points">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Dự đoán tương lai</div>
+        <div class="stat-val" id="stat-future">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Mode</div>
+        <div class="stat-val" id="stat-mode">—</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+let mode = 'sinwave';
+let chart = null;
+
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll('.mode-btn').forEach((b,i)=>b.classList.toggle('active',['sinwave','multivar'][i]===m));
+  document.getElementById('controls-sinwave').style.display = m==='sinwave'?'grid':'none';
+  document.getElementById('controls-multivar').style.display = m==='multivar'?'grid':'none';
+  document.getElementById('chart-title').textContent = m==='sinwave'?'Sin Wave Prediction':'Multivariate Prediction';
+}
+
+async function runPredict() {
+  document.getElementById('loading').classList.add('show');
+
+  let body;
+  if (mode === 'sinwave') {
+    body = {
+      steps:  parseInt(document.getElementById('sw-steps').value),
+      noise:  parseFloat(document.getElementById('sw-noise').value)/100,
+      future: parseInt(document.getElementById('sw-future').value),
+    };
+  } else {
+    body = {
+      steps:  parseInt(document.getElementById('mv-steps').value),
+      future: parseInt(document.getElementById('mv-future').value),
+    };
+  }
+
+  try {
+    const res  = await fetch('/predict/'+mode, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    const data = await res.json();
+    document.getElementById('loading').classList.remove('show');
+
+    if (data.success) renderChart(data);
+    else alert('❌ ' + data.error);
+  } catch(e) {
+    document.getElementById('loading').classList.remove('show');
+    alert('❌ Không kết nối được server');
+  }
+}
+
+function renderChart(data) {
+  const isMulti = mode === 'multivar';
+  const orig    = isMulti ? data.target : data.original;
+  const pred    = isMulti ? data.predictions : data.predictions;
+  const fut     = data.future;
+  const n       = orig.length;
+
+  const labels  = Array.from({length: n + fut.length}, (_,i) => i);
+
+  // Future data (shifted to after original)
+  const futData = Array(n).fill(null).concat(fut);
+  // Bridge: connect last original to first future
+  futData[n-1] = orig[n-1];
+
+  if (chart) chart.destroy();
+  const ctx = document.getElementById('myChart').getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'Gốc', data:orig, borderColor:'#a78bfa', borderWidth:1.5, pointRadius:0, tension:0.3 },
+        { label:'Dự đoán', data:pred, borderColor:'#34d399', borderWidth:1.5, borderDash:[4,2], pointRadius:0, tension:0.3 },
+        { label:'Tương lai', data:futData, borderColor:'#f59e0b', borderWidth:2, pointRadius:0, tension:0.3, borderDash:[6,3] },
+      ]
+    },
+    options: {
+      responsive:true,
+      animation:{ duration:800 },
+      plugins:{
+        legend:{ display:false },
+        tooltip:{ mode:'index', intersect:false, backgroundColor:'#1a1d2e', titleColor:'#a78bfa', bodyColor:'#94a3b8' }
+      },
+      scales:{
+        x:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#475569', maxTicksLimit:10, font:{family:'JetBrains Mono',size:10} } },
+        y:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#475569', font:{family:'JetBrains Mono',size:10} } }
+      }
+    }
+  });
+
+  // Stats
+  document.getElementById('stats').style.display = 'grid';
+  document.getElementById('stat-points').textContent = n;
+  document.getElementById('stat-future').textContent = fut.length;
+  document.getElementById('stat-mode').textContent   = isMulti ? 'Multi' : 'Uni';
+}
+
+// Auto-run on load
+window.onload = () => runPredict();
+</script>
+</body>
+</html>
